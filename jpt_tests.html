@@ -1,0 +1,467 @@
+<html>
+	<head>
+		<title>JPT tests</title>
+		<script src="jpt.js" type="text/javascript"></script>
+		<script>
+			function trace( txt ) {
+				if( JPT._ps3 ) {
+					document.title = txt + ',' + window.document.title;
+				} else if( typeof console !== 'undefined' ) {
+					console.log( txt );
+				} else {
+					document.body.insertBefore( document.createTextNode( txt ), document.body.firstChild );
+					document.body.insertBefore( document.createElement( 'br' ), document.body.firstChild );
+				}
+			}
+			window.onerror = function( line, num, error ) {
+				 		trace( line + '-' + num + '-' + error );
+			}
+			function process_jpt( ) {
+				// Get the data
+				var data_text = document.getElementById( 'data' ).value;
+				if( data_text !== '' ) {
+					eval( 'var data =' +  data_text );
+				} 
+				// Get the event hooks
+				var events_text = document.getElementById( 'events' ).value;
+				if( events_text !== '' ) {
+					eval( 'var events =' + events_text );
+				}
+				
+				// Create a template container for the JPT
+				var xmp_jpt_template = document.createElement('xmp')
+				// Dump the template code from the textare
+				// You need a text node for some browsers else they convert some characters to html entities
+				xmp_jpt_template.appendChild( document.createTextNode( document.getElementById('jpt_template').value ) );
+				xmp_jpt_template.id = 'xmp_jpt_template';
+				document.body.appendChild( xmp_jpt_template );
+
+				// Process the template and insert the output in result_html
+				JPT.insert( 'xmp_jpt_template', 'result_html',  data || {}, events || {} );
+
+				// Show the html
+				document.getElementById('result_text').value = "Generated html:\n\n" + document.getElementById('result_html').innerHTML;
+
+				// Show the js
+				document.getElementById('result_js').value = "Generated js function:\n\n" + JPT._cache.xmp_jpt_template.toString();
+				
+				//Erase templates cache
+				JPT._cache = {};
+			}
+
+			function load_tests_selector( ) {
+				var xmp_nodes = document.getElementById('jpt_templates_container').getElementsByTagName('xmp');
+				var xmp_nodes_length = xmp_nodes.length;
+				var tests = document.createDocumentFragment();
+				for( var i = 0; i < xmp_nodes_length; i++ ) {
+					var xmp = xmp_nodes[i];
+					var option = document.createElement('option')
+					option.value = xmp.id;
+					option.appendChild( document.createTextNode( xmp.id ) );
+					tests.appendChild( option );
+				}
+				var tests_selector = document.getElementById('tests_selector'); 
+				tests_selector.appendChild( tests );
+				tests_selector.selectedIndex = 0;
+				load_template( tests_selector );
+			}
+
+			function load_template( selector ) {
+				var id = selector.options[selector.selectedIndex].value;
+				document.getElementById('jpt_template').value = document.getElementById(id).innerHTML;
+				var data = document.getElementById(id+'_data');
+				if( data === null ) {
+					var data_value = '{}';
+				} else {
+					var data_value = data.innerHTML;
+				}
+				document.getElementById('data').value = data_value;
+				var events = document.getElementById(id+'_events');
+				if( events === null ) {
+					var events_value = '{}';
+				} else {
+					var events_value = events.innerHTML;
+				}
+				document.getElementById('events').value = events_value;
+
+				process_jpt();
+			}
+		</script>
+		<style>
+			#jpt_template, #data, #result_html, #result_text, #events, #result_js {
+				width: 370px;
+				height: 200px;
+			}
+			#result_html {
+				float: left;
+				overflow-y: scroll;
+			}
+			#jpt_templates_container {
+				display: none;
+			}
+			#tests_selector {
+				width: 300px;
+			}
+		</style>
+	</head>
+	<body onload="load_tests_selector()">
+		<h4>Javascript Processor of Templates testing suite</h4>
+		<fieldset>
+			<legend> Input - You can edit the input and execute it with the "Process" button </legend>
+			<textarea id="jpt_template" autocomplete="off"></textarea>
+			<textarea id="data" autocomplete="off">
+			//Data
+			{}
+			</textarea>
+			<textarea id="events" autocomplete="off">
+			//Events
+			{}
+			</textarea>
+		</fieldset>
+		<fieldset>
+			<legend> Output </legend>
+			<div id="result_html">Html result</div>
+			<textarea id="result_text" autocomplete="off">Text result</textarea>
+			<textarea id="result_js" autocomplete="off">JS result</textarea>
+		</fieldset>
+		<button onmousedown="process_jpt()">Process</button>
+		<select onchange="load_template(this)" id="tests_selector" size="4"></select>
+		
+		<!--  Templates container // -->
+		<span id="jpt_templates_container">
+<xmp id="basic_template">
+<i>Saying hi 5 times</i>
+<ul>
+<! for( var i = 0; i < 5; i++ ) { !>
+	<li>Hi <!= i+1 !></li>
+<! } !>
+</ul>
+</xmp>
+<pre id="basic_template_data">
+//Data
+{}
+</pre>
+<pre id="basic_template_events">
+//Events
+{}
+</pre>
+
+<xmp id="with_input_data">
+<i>List of names taken as input data</i>
+<ul>
+<! for( var i in names ) { !>
+	<li><!= names[i] !></li>
+<! } !>
+</ul>
+</xmp>
+<pre id="with_input_data_data">
+// Data
+{ 'names': [ 'Peter', 'Joe', 'JP', 'Mary', 'John', 'Elisabeth' ] }
+</pre>
+
+<xmp id="with_script_tags">
+<script>
+	//We can use script tags inside the templates thanks to the iframes hack ( see the generated html )
+	start_time = (new Date()).getTime();
+</script>
+<i>List of names taken as input data with script tags</i>
+<ul>
+<! for( var name in phones ) { !>
+	<li phone="<!= phones[name] !>"><!= name !></li>
+<! } !>
+</ul>
+<input type="text" id="time"/>
+<script>
+	// Lets benchmark how much time takes the brower to render the block.
+	end_time = (new Date()).getTime();
+	document.getElementById('time').value = "Render time: " + ( end_time - start_time ) + " ms";
+</script>
+</xmp>
+<pre id="with_script_tags_data">
+// Data
+{ 'phones': { 
+			'Peter': 2134234,
+			'Joe': 4332434,
+			'JP': 3247373,
+			'Mary': 347373,
+			'John': 3773434,
+			'Elisabeth': 34734
+			}
+}
+</pre>
+<pre id="with_script_tags_events">
+{}
+</pre>
+
+<xmp id="with_events_selecting_by_tag">
+<script>
+	//We can use script tags inside the templates thanks to the iframes hack ( see the generated html )
+	start_time = (new Date()).getTime();
+</script>
+<i>List of names taken as input data and shows phone number when clicking</i>
+<ul>
+<! for( var name in phones ) { !>
+	<li phone="<!= phones[name] !>"><!= name !></li>
+<! } !>
+</ul>
+<input type="text" id="time"/>
+<script>
+	// Lets benchmark how much time takes the brower to render the block.
+	end_time = (new Date()).getTime();
+	document.getElementById('time').value = "Render time: " + ( end_time - start_time ) + " ms";
+</script>
+</xmp>
+<pre id="with_events_selecting_by_tag_data">
+// Data
+{ 'phones': { 
+			'Peter': 2134234,
+			'Joe': 4332434,
+			'JP': 3247373,
+			'Mary': 347373,
+			'John': 3773434,
+			'Elisabeth': 34734
+			}
+}
+</pre>
+<pre id="with_events_selecting_by_tag_events">
+// Events hooks
+{
+	// Select by tag name
+	'tag': 
+	{
+		// Tags to select
+		'li':
+			// Events to hook
+			{
+				'mousedown': function ( ) { alert( this.innerHTML + ', phone: ' + this.getAttribute('phone') ) }
+				
+			}
+	}
+}
+</pre>
+
+<xmp id="with_events_selecting_by_id">
+<script>
+	//We can use script tags inside the templates thanks to the iframes hack ( see the generated html )
+	start_time = (new Date()).getTime();
+</script>
+<i>Hooking events by element id</i>
+<ul id="phone_list">
+<! for( var name in phones ) { !>
+	<li phone="<!= phones[name] !>"><!= name !></li>
+<! } !>
+</ul>
+<input type="text" id="time"/>
+<script>
+	// Lets benchmark how much time takes the brower to render the block.
+	end_time = (new Date()).getTime();
+	document.getElementById('time').value = "Render time: " + ( end_time - start_time ) + " ms";
+</script>
+</xmp>
+<pre id="with_events_selecting_by_id_data">
+// Data
+{ 'phones': { 
+			'Peter': 2134234,
+			'Joe': 4332434,
+			'JP': 3247373,
+			'Mary': 347373,
+			'John': 3773434,
+			'Elisabeth': 34734
+			}
+}
+</pre>
+<pre id="with_events_selecting_by_id_events">
+// Events hooks
+{
+    // Select by id
+    'id':
+    {
+    	'phone_list': {
+    		'mouseover': function ( ) { this.style.backgroundColor = '#ccc' },
+    		'mouseout': function ( ) { this.style.backgroundColor = '#fff' }
+    	}
+    },
+	// Select by tag name
+	'tag': 
+	{
+		// Tags to select
+		'li':
+			// Events to hook
+			{
+				'mousedown': function ( ) { alert( this.innerHTML + ', phone: ' + this.getAttribute('phone') ) }
+				
+			}
+	}
+}
+</pre>
+
+<xmp id="with_events_selecting_by_partial_id">
+<script>
+	//We can use script tags inside the templates thanks to the iframes hack ( see the generated html )
+	start_time = (new Date()).getTime();
+</script>
+<i>Hooking events by partial tag id, I mean starting by.</i>
+<ul id="phone_list">
+<! 
+var count = 0;
+for( var name in phones ) { !>
+	<li id="user_<!= ++count !>" phone="<!= phones[name] !>"><!= name !></li>
+<! } !>
+</ul>
+<input type="text" id="time"/>
+<script>
+	// Lets benchmark how much time takes the brower to render the block.
+	end_time = (new Date()).getTime();
+	document.getElementById('time').value = "Render time: " + ( end_time - start_time ) + " ms";
+</script>
+</xmp>
+<pre id="with_events_selecting_by_partial_id_data">
+// Data
+{ 'phones': { 
+			'Peter': 2134234,
+			'Joe': 4332434,
+			'JP': 3247373,
+			'Mary': 347373,
+			'John': 3773434,
+			'Elisabeth': 34734
+			}
+}
+</pre>
+<pre id="with_events_selecting_by_partial_id_events">
+// Events hooks
+{
+    // Select by partial id
+    'partial_id':
+    {
+    	'user_': {
+    		'mouseover': function ( ) { this.style.backgroundColor = '#ccc' },
+    		'mouseout': function ( ) { this.style.backgroundColor = '#fff' }
+    	}
+    },
+	// Select by tag name
+	'tag': 
+	{
+		// Tags to select
+		'li':
+			// Events to hook
+			{
+				'mousedown': function ( ) { alert( this.innerHTML + ', phone: ' + this.getAttribute('phone') ) }
+				
+			}
+	}
+}
+</pre>
+
+<xmp id="with_events_selecting_by_class">
+<script>
+	//We can use script tags inside the templates thanks to the iframes hack ( see the generated html )
+	start_time = (new Date()).getTime();
+</script>
+<i>Hooking events by class.</i>
+<ul id="phone_list">
+<! for( var name in phones ) { !>
+	<li class="user" phone="<!= phones[name] !>"><!= name !></li>
+<! } !>
+</ul>
+<input type="text" id="time"/>
+<script>
+	// Lets benchmark how much time takes the brower to render the block.
+	end_time = (new Date()).getTime();
+	document.getElementById('time').value = "Render time: " + ( end_time - start_time ) + " ms";
+</script>
+</xmp>
+<pre id="with_events_selecting_by_class_data">
+// Data
+{ 'phones': { 
+			'Peter': 2134234,
+			'Joe': 4332434,
+			'JP': 3247373,
+			'Mary': 347373,
+			'John': 3773434,
+			'Elisabeth': 34734
+			}
+}
+</pre>
+<pre id="with_events_selecting_by_class_events">
+// Events hooks
+{
+    // Select by partial id
+    'class':
+    {
+    	'user': {
+    		'mouseover': function ( ) { this.style.backgroundColor = '#f90' },
+    		'mouseout': function ( ) { this.style.backgroundColor = '#fff' }
+    	}
+    },
+	// Select by tag name
+	'tag': 
+	{
+		// Tags to select
+		'li':
+			// Events to hook
+			{
+				'mousedown': function ( ) { alert( this.innerHTML + ', phone: ' + this.getAttribute('phone') ) }
+				
+			}
+	}
+}
+</pre>
+
+<xmp id="with_events_when_inserted_to_dom">
+<script>
+	//We can use script tags inside the templates thanks to the iframes hack ( see the generated html )
+	start_time = (new Date()).getTime();
+</script>
+<i>Hooking events by class.</i>
+<ul id="phone_list">
+<! for( var name in phones ) { !>
+	<li class="user" phone="<!= phones[name] !>"><!= name !></li>
+<! } !>
+</ul>
+<input type="text" id="time"/>
+<script>
+	// Lets benchmark how much time takes the brower to render the block.
+	end_time = (new Date()).getTime();
+	document.getElementById('time').value = "Render time: " + ( end_time - start_time ) + " ms";
+</script>
+</xmp>
+<pre id="with_events_when_inserted_to_dom_data">
+// Data
+{ 'phones': { 
+			'Peter': 2134234,
+			'Joe': 4332434,
+			'JP': 3247373,
+			'Mary': 347373,
+			'John': 3773434,
+			'Elisabeth': 34734
+			}
+}
+</pre>
+<pre id="with_events_when_inserted_to_dom_events">
+// Events hooks
+{
+	// Event trigered when is inserted into the DOM
+	'dom_insert': function ( ) { alert( "I've just being inserted into the dom" ) },
+    // Select by partial id
+    'class':
+    {
+    	'user': {
+    		'mouseover': function ( ) { this.style.backgroundColor = '#f90' },
+    		'mouseout': function ( ) { this.style.backgroundColor = '#fff' }
+    	}
+    },
+	// Select by tag name
+	'tag': 
+	{
+		// Tags to select
+		'li':
+			// Events to hook
+			{
+				'mousedown': function ( ) { alert( this.innerHTML + ', phone: ' + this.getAttribute('phone') ) }
+			}
+	}
+}
+</pre>
+		</span>
+	</body>
+</html>
